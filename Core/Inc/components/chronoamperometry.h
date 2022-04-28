@@ -11,7 +11,7 @@
 #ifndef INC_COMPONENTS_CHRONOAMPEROMETRY_H_
 #define INC_COMPONENTS_CHRONOAMPEROMETRY_H_
 
-#include "stm32f4xx_hal.h"
+#include "stm32f4xx_hal_conf.h"
 #include "math.h"
 
 struct CA_Configuration_S {
