@@ -5,10 +5,11 @@
  *      Author: eduardruiz
  */
 
+#include "components/masb_comm_s.h"
+
 uint32_t VrefADC;
 uint32_t IADC; // adc value from Icell
 double Icell;
-double I_array[]={};
 
 void ChronoAmperometry(struct CA_Configuration_S caConfiguration){
 
@@ -16,6 +17,8 @@ void ChronoAmperometry(struct CA_Configuration_S caConfiguration){
 	uint32_t periodms=caConfiguration.samplingPeriodMs;
 	uint32_t duration=caConfiguration.measurementTime;
 	uint16_t n_samples=duration/periodms;
+	struct Data_S sendPackage;
+
 	MCP4725_SetOutputVoltage(hdac,calculateDacOutputVoltage(OutV)); // NUEVA TENSION
 	HAL_ADC_Start(&hadc1); // iniciamos la conversion para el divisor de tension
 	HAL_ADC_PollForConversion(&hadc1, 200); // esperamos que finalice la conversion
@@ -29,8 +32,16 @@ void ChronoAmperometry(struct CA_Configuration_S caConfiguration){
 		IADC = HAL_ADC_GetValue(&hadc1);  // leemos el resultado de la conversion y lo
 												 // guardamos en tempADC
 		Icell=calculateIcellCurrent(IADC);
-		I_array[i]=Icell;
-	}
-	return Icell;
 
+		sendPackage.current = Icell;
+		sendPackage.timeMs = i*periodms;
+		sendPackage.voltage = OutV;
+		sendPackage.point = i;
+
+		MASB_COMM_S_sendData(sendPackage);
+
+	}
 }
+
+
+
