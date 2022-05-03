@@ -16,6 +16,7 @@ struct Data_S data;
 void setup(struct Handles_S *handles) {
     MASB_COMM_S_setUart(handles->huart);
     MASB_COMM_S_waitForMessage();
+    HAL_GPIO_WritePin(GPIO_PORT_A, GPIO_PIN_5, GPIO_PIN_SET)
 }
 
 void loop(void) {
@@ -26,7 +27,10 @@ void loop(void) {
 
                  // Leemos la configuracion que se nos ha enviado en el mensaje y
                  // la guardamos en la variable cvConfiguration
+ 				HAL_GPIO_WritePin(GPIO_PORT_B, GPIO_PIN_5, GPIO_PIN_SET);
 				cvConfiguration = MASB_COMM_S_getCvConfiguration();
+				Cyclic_Voltammetry(cvConfiguration);
+ 				HAL_GPIO_WritePin(GPIO_PORT_B, GPIO_PIN_5, GPIO_PIN_RESET);
 
  				/* Mensaje a enviar desde CoolTerm para hacer comprobacion
 + 				 * eBegin = 0.25 V
@@ -52,8 +56,10 @@ void loop(void) {
 
 				 // Leemos la configuracion que se nos ha enviado en el mensaje y
 				 // la guardamos en la variable cvConfiguration
+ 				HAL_GPIO_WritePin(GPIO_PORT_B, GPIO_PIN_5, GPIO_PIN_SET);
 				caConfiguration = MASB_COMM_S_getCaConfiguration();
-
+				ChronoAmperometry(caConfiguration);
+ 				HAL_GPIO_WritePin(GPIO_PORT_B, GPIO_PIN_5, GPIO_PIN_RESET);
 
 				__NOP(); // Esta instruccion no hace nada y solo sirve para poder anadir un breakpoint
 
