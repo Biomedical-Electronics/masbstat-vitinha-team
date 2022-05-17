@@ -6,11 +6,15 @@
  */
 
 #include "components/masb_comm_s.h"
-
+#include "components/mcp4725_driver.h"
+#include "components/formulas.h"
 uint32_t VrefADC;
 uint32_t IADC; // adc value from Icell
 double Icell;
-extern &htim2;
+extern ADC_HandleTypeDef hadc1;
+int estadoMEDIDA=0;
+extern TIM_HandleTypeDef htim2;
+MCP4725_Handle_T hdac;
 
 void ChronoAmperometry(struct CA_Configuration_S caConfiguration){
 
@@ -21,8 +25,8 @@ void ChronoAmperometry(struct CA_Configuration_S caConfiguration){
 	uint16_t n_samples=duration/periodms;
 	struct Data_S sendPackage;
 	MCP4725_SetOutputVoltage(hdac,calculateDacOutputVoltage(OutV)); // NUEVA TENSION
-	TIM_TimeBaseInitStructure.TIM_Period = period - 1;
-	TIM_TimeBaseInitStructure.TIM_Prescaler = 8399+1;
+	htim2.Init.Prescaler = 8399;
+	htim2.Init.Period = 10*periodms;
 	HAL_TIM_Base_Start_IT(&htim2);
 	HAL_ADC_Start(&hadc1); // iniciamos la conversion para el divisor de tension
 	HAL_ADC_PollForConversion(&hadc1, 200); // esperamos que finalice la conversion
@@ -50,7 +54,7 @@ void ChronoAmperometry(struct CA_Configuration_S caConfiguration){
 	}
 }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim2) {
 
 	estadoMEDIDA = 1;
 

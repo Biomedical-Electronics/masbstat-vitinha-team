@@ -8,15 +8,24 @@
 
 #include "components/stm32main.h"
 #include "components/masb_comm_s.h"
-
+#include "components/i2c_lib.h"
+#include "components/mcp4725_driver.h"
+#include "main.h"
 struct CV_Configuration_S cvConfiguration;
 struct CA_Configuration_S caConfiguration;
 struct Data_S data;
+MCP4725_Handle_T hdac=NULL;
+
+
 
 void setup(struct Handles_S *handles) {
     MASB_COMM_S_setUart(handles->huart);
     MASB_COMM_S_waitForMessage();
-    HAL_GPIO_WritePin(GPIO_PORT_A, GPIO_PIN_5, GPIO_PIN_SET)
+    HAL_GPIO_WritePin(EN_GPIO_Port, EN_Pin, GPIO_PIN_SET);
+    hdac = MCP4725_Init();
+    MCP4725_ConfigSlaveAddress(hdac, 0x66); // DIRECCION DEL ESCLAVO
+    MCP4725_ConfigVoltageReference(hdac, 4.0f); // TENSION DE REFERENCIA
+    MCP4725_ConfigWriteFunction(hdac, I2C_write); // FUNCION DE ESCRITURA (libreria I2C_lib)
 }
 
 void loop(void) {
@@ -27,10 +36,10 @@ void loop(void) {
 
                  // Leemos la configuracion que se nos ha enviado en el mensaje y
                  // la guardamos en la variable cvConfiguration
- 				HAL_GPIO_WritePin(GPIO_PORT_B, GPIO_PIN_5, GPIO_PIN_SET);
+ 				HAL_GPIO_WritePin(RELAY_GPIO_Port, RELAY_Pin, GPIO_PIN_SET);
 				cvConfiguration = MASB_COMM_S_getCvConfiguration();
 				Cyclic_Voltammetry(cvConfiguration);
- 				HAL_GPIO_WritePin(GPIO_PORT_B, GPIO_PIN_5, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(RELAY_GPIO_Port, RELAY_Pin, GPIO_PIN_RESET);
 
  				/* Mensaje a enviar desde CoolTerm para hacer comprobacion
 + 				 * eBegin = 0.25 V
@@ -56,10 +65,10 @@ void loop(void) {
 
 				 // Leemos la configuracion que se nos ha enviado en el mensaje y
 				 // la guardamos en la variable cvConfiguration
- 				HAL_GPIO_WritePin(GPIO_PORT_B, GPIO_PIN_5, GPIO_PIN_SET);
+ 				HAL_GPIO_WritePin(RELAY_GPIO_Port, RELAY_Pin, GPIO_PIN_SET);
 				caConfiguration = MASB_COMM_S_getCaConfiguration();
 				ChronoAmperometry(caConfiguration);
- 				HAL_GPIO_WritePin(GPIO_PORT_B, GPIO_PIN_5, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(RELAY_GPIO_Port, RELAY_Pin, GPIO_PIN_RESET);
 
 				__NOP(); // Esta instruccion no hace nada y solo sirve para poder anadir un breakpoint
 
