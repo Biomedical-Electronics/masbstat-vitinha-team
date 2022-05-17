@@ -21,8 +21,8 @@ void ChronoAmperometry(struct CA_Configuration_S caConfiguration){
 	uint16_t n_samples=duration/periodms;
 	struct Data_S sendPackage;
 	MCP4725_SetOutputVoltage(hdac,calculateDacOutputVoltage(OutV)); // NUEVA TENSION
-	TIM_TimeBaseInitStructure.TIM_Period = period - 1;
 	TIM_TimeBaseInitStructure.TIM_Prescaler = 8399+1;
+	TIM_TimeBaseInitStructure.TIM_Period = periodms*10000;
 	HAL_TIM_Base_Start_IT(&htim2);
 	HAL_ADC_Start(&hadc1); // iniciamos la conversion para el divisor de tension
 	HAL_ADC_PollForConversion(&hadc1, 200); // esperamos que finalice la conversion
@@ -56,4 +56,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 0c692f52700943d0b67f21d635382bee88c56621
