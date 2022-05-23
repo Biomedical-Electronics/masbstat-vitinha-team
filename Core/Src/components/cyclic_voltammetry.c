@@ -16,7 +16,10 @@ double VrefADC;
 uint32_t IADC; // adc value from Icell
 double Icell;
 extern ADC_HandleTypeDef hadc1;
-int estadoMEDIDA=0;
+// TODO: Esta variable tambien existe con el mismo nombre en chronoamperometry.c.
+// Si quereis utilizar el mismo nombre para ambas variables, ponedle 'static' deltante
+// y el scope de la varaible queda limitado al fichero en el que ha sido declarada.
+static int estadoMEDIDA=0;
 extern TIM_HandleTypeDef htim2;
 uint16_t cumsum=0;
 
@@ -99,10 +102,11 @@ void Cyclic_Voltammetry(struct CV_Configuration_S cvConfiguration){
 }
 
 
-
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim2) {
-
-	estadoMEDIDA = 1;
-
-}
+// TODO: No podeis definir esta funcion 2 veces. Ya la teneis definida en chronoamperometry.c
+// Escoged cual dejais. De momento os la dejo comentada para que no pete.
+//void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim2) {
+//
+//	estadoMEDIDA = 1;
+//
+//}
 

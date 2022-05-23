@@ -12,7 +12,7 @@
 #ifndef INC_COMPONENTS_MASB_COMM_S_H_
 #define INC_COMPONENTS_MASB_COMM_S_H_
 
-#include "stm32f4xx_hal_conf.h"
+#include "stm32f4xx_hal.h"
 #include "components/cyclic_voltammetry.h"
 #include "components/chronoamperometry.h"
 

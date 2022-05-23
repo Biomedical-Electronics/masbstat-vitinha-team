@@ -9,7 +9,7 @@
 #ifndef INC_COMPONENTS_COBS_H_
 #define INC_COMPONENTS_COBS_H_
 
-#include "stm32f4xx_hal_conf.h"
+#include "stm32f4xx_hal.h"
 
 /* Funciones exportadas ------------------------------------------------------*/
 /** @defgroup COBS_Exported_Functions Consistent Overhead Byte Stuffing
