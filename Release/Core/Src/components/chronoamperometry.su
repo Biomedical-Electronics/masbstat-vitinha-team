@@ -1,0 +1,2 @@
+chronoamperometry.c:23:6:ChronoAmperometry	104	static
+chronoamperometry.c:75:6:HAL_TIM_PeriodElapsedCallback	0	static

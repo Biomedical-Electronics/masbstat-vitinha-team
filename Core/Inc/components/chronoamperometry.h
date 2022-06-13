@@ -24,5 +24,5 @@ struct CA_Configuration_S {
 
 void ChronoAmperometry(struct CA_Configuration_S caConfiguration);
 
-
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim2);
 

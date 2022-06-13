@@ -1,0 +1,6 @@
+mcp4725_driver.c:11:18:MCP4725_Init	0	static
+mcp4725_driver.c:17:6:MCP4725_ConfigSlaveAddress	0	static
+mcp4725_driver.c:24:6:MCP4725_ConfigWriteFunction	0	static
+mcp4725_driver.c:31:6:MCP4725_ConfigVoltageReference	0	static
+mcp4725_driver.c:38:6:MCP4725_SetOutputVoltage	16	static
+mcp4725_driver.c:55:6:MCP4725_DeInit	0	static
