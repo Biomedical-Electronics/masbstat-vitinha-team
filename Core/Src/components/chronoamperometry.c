@@ -49,8 +49,8 @@ void ChronoAmperometry(struct CA_Configuration_S caConfiguration){
 				HAL_ADC_PollForConversion(&hadc1, 100);
 				uint32_t VADC = HAL_ADC_GetValue(&hadc1);//measure of channel 1
 
-				double VREF = calculateVrefVoltage(IADC); //Current of the cell is calculated
-				double Icell=calculateIcellCurrent(VADC);
+				double VREF = calculateVrefVoltage(VADC); //Current of the cell is calculated
+				double Icell=calculateIcellCurrent(IADC);
 				//double Icell=(VADC); //Voltage of reference is calculated
 				// A structure is created to send the data and they are sent to the PC
 				struct Data_S sendPackage;
