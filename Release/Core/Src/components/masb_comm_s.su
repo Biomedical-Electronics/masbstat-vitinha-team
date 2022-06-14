@@ -1,0 +1,8 @@
+masb_comm_s.c:127:15:saveByteArrayAsDoubleFromBuffer.constprop	8	static
+masb_comm_s.c:48:6:MASB_COMM_S_waitForMessage	0	static
+masb_comm_s.c:55:7:MASB_COMM_S_dataReceived	8	static
+masb_comm_s.c:67:9:MASB_COMM_S_command	0	static
+masb_comm_s.c:73:27:MASB_COMM_S_getCvConfiguration	40	static
+masb_comm_s.c:88:27:MASB_COMM_S_getCaConfiguration	16	static
+masb_comm_s.c:100:6:MASB_COMM_S_sendData	16	static
+masb_comm_s.c:116:6:HAL_UART_RxCpltCallback	0	static

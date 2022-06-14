@@ -1,12 +1,10 @@
-/**
-  ******************************************************************************
-  * @file		cyclic_voltammetry.h
-  * @brief		Archivo de encabezado del componente encargado de la gestión de
-  *             la voltammetría cíclica.
-  * @author		Albert Álvarez Carulla
-  * @copyright	Copyright 2020 Albert Álvarez Carulla. All rights reserved.
-  ******************************************************************************
-  */
+/*
+ * cyclic_voltammetry.h
+ *
+ *  Created on: 3 may. 2022
+ *      Author: eduardruiz
+ */
+
 
 #ifndef INC_COMPONENTS_CYCLIC_VOLTAMMETRY_H_
 #define INC_COMPONENTS_CYCLIC_VOLTAMMETRY_H_
@@ -24,7 +22,7 @@ struct CV_Configuration_S {
 
 };
 
-void CyclicVoltammetry(struct CV_Configuration_S cvConfiguration);
+void Cyclic_Voltammetry(struct CV_Configuration_S cvConfiguration);
 
 
 #endif /* INC_COMPONENTS_CYCLIC_VOLTAMMETRY_H_ */

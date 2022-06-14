@@ -1,0 +1,2 @@
+i2c_lib.c:5:6:I2C_init	0	static
+i2c_lib.c:11:6:I2C_write	16	static

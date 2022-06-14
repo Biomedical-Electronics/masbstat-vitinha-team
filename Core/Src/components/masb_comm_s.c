@@ -12,8 +12,8 @@
 #include "components/masb_comm_s.h"
 #include "components/cobs.h"
 
+//extern UART_HandleTypeDef *huart2;
 extern UART_HandleTypeDef huart2;
-//static UART_HandleTypeDef *huart2;
 
 uint8_t rxBuffer[UART_BUFF_SIZE] = { 0 },
 		txBuffer[UART_BUFF_SIZE] = { 0 };
@@ -50,7 +50,6 @@ void MASB_COMM_S_waitForMessage(void) {
 	dataReceived = FALSE;
 	rxIndex = 0;
 	HAL_UART_Receive_IT(&huart2, &rxBuffer[rxIndex], 1);
-
 }
 
 _Bool MASB_COMM_S_dataReceived(void) {

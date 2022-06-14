@@ -1,0 +1,3 @@
+formulas.c:14:8:calculateVrefVoltage	8	static
+formulas.c:21:8:calculateIcellCurrent	8	static
+formulas.c:29:7:calculateDacOutputVoltage	8	static

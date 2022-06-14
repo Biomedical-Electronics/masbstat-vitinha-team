@@ -1,0 +1,2 @@
+stm32main.c:27:6:setup	24	static
+stm32main.c:47:6:loop	120	static,ignoring_inline_asm

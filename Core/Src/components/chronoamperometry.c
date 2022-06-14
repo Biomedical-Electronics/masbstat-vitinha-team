@@ -1,65 +1,79 @@
-/**
-  ******************************************************************************
-  * @file		chronoamperometry.c
-  * @brief		Gestión de la cronoamperometría.
-  * @author		Albert Álvarez Carulla
-  * @copyright	Copyright 2020 Albert Álvarez Carulla. All rights reserved.
-  ******************************************************************************
-  */
+/*
+ * chronoamperometry.c
+ *
+ *  Created on: Apr 26, 2022
+ *      Author: Eduard and Elliot
+ */
 
-// Anadimos los archivos header necesarios para el programa
-#include "components/chronoamperometry.h" // donde tenemos definida la crono
-#include "components/masb_comm_s.h" // en este header se detallan los paquetes de comandos que inician y realizan las mediciones
-#include "components/dac.h"
-#include "components/adc.h"
-#include "components/stm32main.h"
-#include "main.h"
+//Includes of the needed components
+
+#include "components/masb_comm_s.h"
+#include "components/mcp4725_driver.h"
 #include "components/formulas.h"
+#include "main.h"
 
-// per configurar el voltatge de la cela
 
-extern TIM_HandleTypeDef htim3; //timer
-extern uint8_t count;
-extern uint8_t state; 
-uint32_t samplingPeriod;
+extern ADC_HandleTypeDef hadc1; //variable of the hdac imported
+extern TIM_HandleTypeDef htim3; //variable of the timer
+MCP4725_Handle_T hdac; //variable of the dac
 
-// caConfiguration=MASB_COMM_S_getCaConfiguration(void)
+
+int estadoMEDIDA=0; //this variable changes with the timer interrupts to allow the ADC measures
 
 void ChronoAmperometry(struct CA_Configuration_S caConfiguration){
+	//voltage for the chrono, period between measures, the total duration are received by UART
+	//COM and the number of samples is calculated
+	double OutV=caConfiguration.eDC;
+	uint32_t periodms=caConfiguration.samplingPeriodMs;
+	uint32_t duration=caConfiguration.measurementTime;
+	uint32_t n_samples=duration*1000/periodms + 1;
+	// The new voltage is sent to the plate, a delay is waited and the relay closed
+	MCP4725_SetOutputVoltage(hdac,calculateDacOutputVoltage(OutV));
+	HAL_Delay(500);
+	HAL_GPIO_WritePin(RELAY_GPIO_Port, RELAY_Pin, GPIO_PIN_SET);
+	// The timer period is adjusted with the period received by USART, the counter to 0 and
+	//interrupts are activated
+	__HAL_TIM_SET_AUTORELOAD(&htim3,10*periodms);
+	__HAL_TIM_SET_COUNTER(&htim3,0);
+	HAL_TIM_Base_Start_IT(&htim3);
+	//a loop is initialized to obtain n samples with the ADC
+	int i=0;
+	while (i<n_samples) {
+		while (estadoMEDIDA==1){
 
-	state = CA;  // s'esta fent la cronoamperometria
+				HAL_ADC_Start(&hadc1);
+				HAL_ADC_PollForConversion(&hadc1, 100);
+				uint32_t IADC = HAL_ADC_GetValue(&hadc1); //measure of channel 0
 
-	double eDC= caConfiguration.eDC;
+				HAL_ADC_Start(&hadc1);
+				HAL_ADC_PollForConversion(&hadc1, 100);
+				uint32_t VADC = HAL_ADC_GetValue(&hadc1);//measure of channel 1
 
-	// eDC es el voltatge constant de la cela electroquimica,
-	// el fixem mitjançant la funcio seguent
-	sendVoltage(eDC);
-
-	HAL_GPIO_WritePin(RELAY_GPIO_Port, RELAY_Pin, GPIO_PIN_SET); // (set) Tanquem rele
-
-    samplingPeriod=caConfiguration.samplingPeriodMs; // temps entre mostra i mostra (ms)
-	uint32_t mTime=caConfiguration.measurementTime; // durada de la crono (s)
-
-	// (durada total de la crono) / (temps entre mostres) = quantes mostres hi ha.
-	// COMPTE: Cal passar el Sampling period a segons
-
-	uint8_t measures = (uint8_t)(((double)mTime)/(((double)samplingPeriod)/1000.0)); // nombre de mesures
-
-	// CONFIGURAR EL TIMER
-
-	ClockSettings(samplingPeriod);
-
-
-	count = 1;  // s'ha fet la primera mesura
-
-	while (count <= measures){  // mentre no arribem al nombre total de mesures
-		if (count == measures){  // quan arribem a la mesura final
-			state = IDLE;  // no fa ni crono ni cv
+				double VREF = calculateVrefVoltage(VADC); //Current of the cell is calculated
+				double Icell=calculateIcellCurrent(IADC);
+				//double Icell=(VADC); //Voltage of reference is calculated
+				// A structure is created to send the data and they are sent to the PC
+				struct Data_S sendPackage;
+				sendPackage.current =Icell;
+				sendPackage.timeMs = i * periodms;
+				sendPackage.voltage = VREF;
+				sendPackage.point = i;
+				MASB_COMM_S_sendData(sendPackage);
+				i++; //the counter is incremented
+				estadoMEDIDA=0; //the measure state is change to deactivated
 		}
 
-		state= CA;
-	}
 
+	}
+	//when finished, interrupts and relay deactivated
 	HAL_TIM_Base_Stop_IT(&htim3);
-	HAL_GPIO_WritePin(RELAY_GPIO_Port, RELAY_Pin, GPIO_PIN_RESET); // reset, OBRIM EL RELÉ
+	HAL_GPIO_WritePin(RELAY_GPIO_Port, RELAY_Pin, GPIO_PIN_RESET);
 }
+
+//ISR function of the interruptions
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim3){
+	estadoMEDIDA=1;
+}
+
+

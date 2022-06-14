@@ -1,0 +1,6 @@
+ad5280_driver.c:11:17:AD5280_Init	0	static
+ad5280_driver.c:17:6:AD5280_ConfigSlaveAddress	0	static
+ad5280_driver.c:24:6:AD5280_ConfigWriteFunction	0	static
+ad5280_driver.c:31:6:AD5280_ConfigNominalResistorValue	0	static
+ad5280_driver.c:38:6:AD5280_SetWBResistance	24	static
+ad5280_driver.c:52:6:AD5280_DeInit	0	static

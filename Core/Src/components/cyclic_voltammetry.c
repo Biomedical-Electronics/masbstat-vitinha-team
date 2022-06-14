@@ -1,136 +1,130 @@
-/**
- ******************************************************************************
- * @file		cyclic_voltammetry.c
- * @brief		Gestión de la voltammetría cíclica.
- * @author		Albert Álvarez Carulla
- * @copyright	Copyright 2020 Albert Álvarez Carulla. All rights reserved.
- ******************************************************************************
+/*
+ * cyclic_voltammetry.c
+ *
+ *  Created on: 3 may. 2022
+ *      Author: eduardruiz
  */
-
+// components and necessary includes
 #include "components/cyclic_voltammetry.h"
-#include "components/masb_comm_s.h" // en este header se detallan los paquetes de comandos que inician y realizan las mediciones
-#include "components/dac.h"
-#include "components/adc.h"
+#include "components/masb_comm_s.h"
+#include "components/mcp4725_driver.h"
 #include "components/formulas.h"
+#include "components/chronoamperometry.h"
 #include "main.h"
-#include "components/stm32main.h"
-// per configurar el voltatge de la cela
 
-#include "components/i2c_lib.h"
+//includes of external peripherals UART, ADC, DAC and Timer 3
+extern UART_HandleTypeDef huart2;
+extern ADC_HandleTypeDef hadc1;
+extern MCP4725_Handle_T hdac;
+extern TIM_HandleTypeDef htim3;
 
-extern uint8_t count;
-extern volatile uint8_t state;
-extern volatile _Bool timeElapsed;
-extern TIM_HandleTypeDef htim3; //timer
-uint32_t frequency;
+extern int estadoMEDIDA;// timer 3 ISR controlled variable located in chronoamperometry file
 
-const double tol = 1e-6; //tolerancia para determinar si 2 valores son iguales 
+uint16_t cumsum=0; //cumulated measurements all along cycles
 
-_Bool decimalEquals(double num1, double num2, double tolerance) {
-	return fabs(num1 - num2) < tolerance;
-}
+//this function takes n ADC samples taking into account the voltage step, the increment
+//directions, the voltage variation rate and the cyclic voltages of the cyclic voltammetry
+//V1: voltage of begin, V2: objective voltage, Period and A_step: voltage step
+void increment_sense(double V1,double V2,  uint32_t period, double A_step){
+	struct Data_S sendPackage; //a structure to send the data to the PC is initialized
+	double outV=V1;//first voltage
+	uint16_t cont=0; //counter of the samples taken (each sample includes the voltage and the intensity)
+	if (V1>V2){ //if the initial voltage is bigger than the final, decrements are done
+		while (cont<(V1-V2)/A_step){
+			while (estadoMEDIDA==1){//when the interruption activates, the measure is taken
+				//ADC_Select_CH0();
+				//measure of the voltage in the ADC
+				HAL_ADC_Start(&hadc1);
+				HAL_ADC_PollForConversion(&hadc1, 100);
+				uint32_t IADC = HAL_ADC_GetValue(&hadc1);
+				//measure of the intensity of the cell in the ADC
+				HAL_ADC_Start(&hadc1);
+				HAL_ADC_PollForConversion(&hadc1, 100);
+				uint32_t VADC = HAL_ADC_GetValue(&hadc1);
+				// Voltage and intensity of the cells are calculated with the ADC values
+				double VREF = calculateVrefVoltage(VADC);
+				double Icell = calculateIcellCurrent(IADC);
+				//the data are saved in the send data structures and sent to the PC
+				sendPackage.current = Icell;
+				sendPackage.voltage = VREF;
+				sendPackage.timeMs = cumsum * period;
+				sendPackage.point = cumsum;
+				MASB_COMM_S_sendData(sendPackage);
+				// the total samples variables is incremented, and also the counter of samples
+				cumsum++;
+				cont++;
+				//the voltage to the plate is decremented in an step and sent
+				outV = outV - A_step;
+				MCP4725_SetOutputVoltage(hdac, calculateDacOutputVoltage(outV));
+				estadoMEDIDA = 0;	//the ISR variable to measure is deactivated
+		}
+	}
+	}
+	if (V1<V2){ //same than above but with increments because the objective is bigger than initial
+		while (cont<(V2-V1)/A_step){
+			while (estadoMEDIDA==1){
 
-void CyclicVoltammetry(struct CV_Configuration_S cvConfiguration) {
+				HAL_ADC_Start(&hadc1);
+				HAL_ADC_PollForConversion(&hadc1, 100);
+				uint32_t IADC = HAL_ADC_GetValue(&hadc1);
 
-	double ebegin = cvConfiguration.eBegin; // Voltaje inicial que se le asigna a la celda electroquimica
+				HAL_ADC_Start(&hadc1);
+				HAL_ADC_PollForConversion(&hadc1, 100);
+				uint32_t VADC = HAL_ADC_GetValue(&hadc1);
 
-	sendVoltage(ebegin);
-	double vObjetivo = cvConfiguration.eVertex1; // voltaje al que debe llegar la funcion (primer vertice)
-	double desiredVcell = ebegin;
 
-	HAL_GPIO_WritePin(RELAY_GPIO_Port, RELAY_Pin, GPIO_PIN_SET); //  Cerramos el rele
+				double VREF = calculateVrefVoltage(VADC);
+				double Icell = calculateIcellCurrent(IADC);
 
-	uint8_t cycles = cvConfiguration.cycles; // nombre total de ciclos/medidas de la voltimetria ciclica
-	double scanRate = cvConfiguration.scanRate; // variación de la tensión de la celda electroquímica en el tiempo
-	double eStep = cvConfiguration.eStep; // incremento/decremento de la tensión entre dos puntos consecutivos
-	frequency = (uint32_t)(eStep / scanRate * 1000.0); // tiempo entre muestras
-
-	ClockSettings(frequency);
-
-	count = 1; // inicializamos la voltametria.
-	state = CV; // mientras se este ejecutando una Voltametria, el estado sera CV
-	timeElapsed = FALSE;
-	while (cycles) { // mientras no hayamos llegado al ultimo ciclo de la voltametria
-
-		if (timeElapsed) {
-			timeElapsed = FALSE;
-
-			// Desde ADC llamamos a la variable Vcell, la cual comparamos com Vobjetivo
-			// para ver si ha llegado al vertice 1, vertice 2 o eBegin.
-
-			if (decimalEquals(desiredVcell, vObjetivo, tol)) {
-
-				// ******************* Caso 1: que nos encontremos en el vertice 1  *****************
-
-				if (decimalEquals(vObjetivo, cvConfiguration.eVertex1, tol)) {
-					vObjetivo = cvConfiguration.eVertex2; //siguiente objetivo es el vertice 2
-
-				}
-
-				// ***************** Caso 2: que nos encontremos en el vertice 2 *****************
-				else if (decimalEquals(vObjetivo, cvConfiguration.eVertex2,
-						tol)) {
-					vObjetivo = cvConfiguration.eBegin; //objetivo es volver a eBegin
-
-				}
-
-				// ***************** Caso 3: nos encontramos en ebegin *****************
-				else {
-					vObjetivo = cvConfiguration.eVertex1; //siguiente objetivo es vertice 1
-					cycles--;
-				}
-
-			}
-
-			else { // Cuando no hemos llegado al objetivo, sumamos o restamos un incremento hasta llegar
-
-				// ***************** Para llegar al vertice 1 *****************
-
-				if (decimalEquals(vObjetivo, cvConfiguration.eVertex1, tol)) {
-					if ((desiredVcell + eStep) > vObjetivo) { // sumamos eStep y nos pasamos del objetivo, asi que fijamos el objetivo a vcell
-						desiredVcell = vObjetivo;
-						sendVoltage(vObjetivo);
-					} else { //si sumamos el eStep y no nos pasamos, definimos de nuevo el voltaje de la celda.
-						desiredVcell += eStep;
-						sendVoltage(desiredVcell);
-					}
-				}
-
-				// ***************** Para llegar al vertice 2 *****************
-
-				// El vertice dos se encuentra por debajo del vertice 1, así que tendremos que restar el eStep al vcell
-
-				if (decimalEquals(vObjetivo, cvConfiguration.eVertex2, tol)) { //
-					if ((desiredVcell - eStep) < vObjetivo) { // Restamos eStep y nos pasamos del objetivo (demasiado pequeño), fijamos el vcell
-						desiredVcell = vObjetivo;
-						sendVoltage(desiredVcell);
-					} else { // si restamos eStep y no nos pasamos, definimos de nuevo el voltaje de la celda.
-						desiredVcell -= eStep;
-						sendVoltage(desiredVcell);
-					}
-				}
-
-				// ***************** Para llegar a eBegin *****************
-
-				// El punto inicial se encuentra entre ambos vertices, por debajo del 1 y encima del 2
-
-				if (decimalEquals(vObjetivo, cvConfiguration.eBegin, tol)) {
-					if ((desiredVcell + eStep) > vObjetivo) { // sumamos eStep y nos pasamos del objetivo, asi que fijamos el obetivo a vcell
-						desiredVcell = vObjetivo;
-						sendVoltage(desiredVcell);
-					} else { //si sumamos el eStep y no nos pasamos, definimos de nuevo el voltaje de la celda.
-						desiredVcell += eStep;
-						sendVoltage(desiredVcell);
-					}
-				}
-
+				sendPackage.current = Icell;
+				sendPackage.voltage = VREF;
+				sendPackage.timeMs = cumsum * period;
+				sendPackage.point = cumsum;
+				MASB_COMM_S_sendData(sendPackage);
+				cumsum++;
+				cont++;
+				outV = outV + A_step;
+				MCP4725_SetOutputVoltage(hdac, calculateDacOutputVoltage(outV)); // NUEVA TENSION
+				estadoMEDIDA = 0;
 			}
 		}
-
 	}
-	HAL_TIM_Base_Stop_IT(&htim3);
-	HAL_GPIO_WritePin(RELAY_GPIO_Port, RELAY_Pin, GPIO_PIN_RESET); //abrimos rele
-	state = IDLE;
-
 }
+
+// Cyclic voltammetry function
+void Cyclic_Voltammetry(struct CV_Configuration_S cvConfiguration){
+	// the voltages of the CV, the number of cycles, the scanning rate and the
+	// voltage step are received trough UART COM. The period between measures is calculated.
+	double V_init=cvConfiguration.eBegin;
+	double V_1=cvConfiguration.eVertex1;
+	double V_2=cvConfiguration.eVertex2;
+	uint8_t n_cycles=cvConfiguration.cycles;
+	double ScanRate=cvConfiguration.scanRate;
+	double A_step=cvConfiguration.eStep;
+	uint32_t periodms=A_step/ScanRate*1000;
+	//the initial voltage is set in the plate
+	MCP4725_SetOutputVoltage(hdac, calculateDacOutputVoltage(V_init));
+	// The timer period is adjusted, counter is set to 0 and interrups activated
+	__HAL_TIM_SET_AUTORELOAD(&htim3,10*periodms);
+	__HAL_TIM_SET_COUNTER(&htim3,0);
+	HAL_TIM_Base_Start_IT(&htim3);
+	// The realy is closed and the global variable of total samples is set to 0
+	HAL_GPIO_WritePin(RELAY_GPIO_Port, RELAY_Pin, GPIO_PIN_SET);
+	HAL_Delay(500);
+	cumsum=0;
+	//main loop, it executes the cyclic voltammetry a determined number of cycles
+	for (int n=0;n<n_cycles;n++){
+		// A cycle consists in going from the initial voltage to a vertex, then, to the
+		//other vertex and, finally, to the beginning voltage again
+		increment_sense(V_init,V_1,periodms,A_step);
+		increment_sense(V_1,V_2,periodms,A_step);
+		increment_sense(V_2,V_init,periodms,A_step);
+	}
+	// When finished, interrupts are closed and the relay opened
+	HAL_TIM_Base_Stop_IT(&htim3);
+	HAL_GPIO_WritePin(RELAY_GPIO_Port, RELAY_Pin, GPIO_PIN_RESET);
+}
+
+
+
 
